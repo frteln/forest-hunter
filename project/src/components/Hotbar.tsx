@@ -11,36 +11,32 @@ interface Props {
   onOpenShop: () => void;
 }
 
-const ICONS: Record<string, typeof Crosshair> = {
-  Crosshair, Shield, HardHat, Gem,
-};
-
-export function Hotbar({ snap, lang: _lang, onOpenInventory, onOpenChest, onOpenShop }: Props) {
+export function Hotbar({ snap, lang: _lang }: Props) {
   if (!snap) return null;
   const slots = ['weapon', 'armor', 'helmet', 'amulet'] as const;
   const slotIcons: Record<string, typeof Crosshair> = { weapon: Crosshair, armor: Shield, helmet: HardHat, amulet: Gem };
   const slotLabels: Record<string, string> = { weapon: 'WPN', armor: 'ARM', helmet: 'HLM', amulet: 'AML' };
 
   return (
-    <div className="absolute bottom-3 left-3 z-20 flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5 pointer-events-auto select-none">
       {/* Equipment slots */}
       <div className="flex gap-1.5">
         {slots.map(slot => {
           const item = snap.equipped[slot];
           const Icon = slotIcons[slot];
-          const color = item ? RARITY_COLORS[item.rarity] : '#555';
+          const color = item ? RARITY_COLORS[item.rarity] : '#64748b';
           return (
             <div
               key={slot}
-              className="w-11 h-11 rounded-lg bg-black/50 backdrop-blur-md border-2 flex flex-col items-center justify-center relative overflow-hidden"
-              style={{ borderColor: color }}
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900/85 backdrop-blur-md border border-white/15 flex flex-col items-center justify-center relative overflow-hidden shadow-md"
+              style={{ borderColor: item ? color : undefined }}
             >
-              <Icon size={18} style={{ color }} />
-              <span className="text-[7px] text-white/40 absolute bottom-0.5">{slotLabels[slot]}</span>
+              <Icon size={16} style={{ color }} />
+              <span className="text-[7px] font-bold text-white/50 absolute bottom-0.5">{slotLabels[slot]}</span>
               {item && (
                 <div
-                  className="absolute inset-0 opacity-20"
-                  style={{ background: `radial-gradient(circle, ${RARITY_COLORS[item.rarity]}40, transparent)` }}
+                  className="absolute inset-0 opacity-25 pointer-events-none"
+                  style={{ background: `radial-gradient(circle, ${RARITY_COLORS[item.rarity]}60, transparent)` }}
                 />
               )}
             </div>
@@ -52,14 +48,14 @@ export function Hotbar({ snap, lang: _lang, onOpenInventory, onOpenChest, onOpen
         {[0, 1, 2].map(i => (
           <div
             key={i}
-            className="w-11 h-11 rounded-lg bg-black/50 backdrop-blur-md border-2 border-white/10 flex items-center justify-center relative"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900/85 backdrop-blur-md border border-white/10 flex flex-col items-center justify-center relative shadow-md"
           >
             {i === 0 ? (
-              <Zap size={18} className="text-amber-400" />
+              <Zap size={16} className="text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]" />
             ) : (
-              <Lock size={14} className="text-white/20" />
+              <Lock size={12} className="text-white/30" />
             )}
-            <span className="text-[7px] text-white/40 absolute bottom-0.5">SKL{i + 1}</span>
+            <span className="text-[7px] font-bold text-white/40 absolute bottom-0.5">SKL{i + 1}</span>
           </div>
         ))}
       </div>
@@ -69,27 +65,27 @@ export function Hotbar({ snap, lang: _lang, onOpenInventory, onOpenChest, onOpen
 
 export function UtilityButtons({ onOpenInventory, onOpenChest, onOpenShop }: Pick<Props, 'onOpenInventory' | 'onOpenChest' | 'onOpenShop'>) {
   return (
-    <div className="absolute right-3 bottom-3 z-20 flex flex-col gap-2">
+    <div className="flex flex-col gap-2 pointer-events-auto select-none">
       <button
         onClick={onOpenInventory}
-        className="w-12 h-12 rounded-xl bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 active:scale-95 transition flex-col gap-0.5"
+        className="w-11 h-11 rounded-xl bg-slate-900/85 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/90 active:scale-95 transition flex-col gap-0.5 shadow-md shadow-black/40"
       >
-        <Crosshair size={20} />
-        <span className="text-[7px]">BAG</span>
+        <Crosshair size={18} className="text-emerald-400" />
+        <span className="text-[8px] font-bold text-white/70">BAG</span>
       </button>
       <button
         onClick={onOpenChest}
-        className="w-12 h-12 rounded-xl bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 active:scale-95 transition flex-col gap-0.5"
+        className="w-11 h-11 rounded-xl bg-slate-900/85 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/90 active:scale-95 transition flex-col gap-0.5 shadow-md shadow-black/40"
       >
-        <Gem size={20} />
-        <span className="text-[7px]">CST</span>
+        <Gem size={18} className="text-purple-400" />
+        <span className="text-[8px] font-bold text-white/70">CST</span>
       </button>
       <button
         onClick={onOpenShop}
-        className="w-12 h-12 rounded-xl bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 active:scale-95 transition flex-col gap-0.5"
+        className="w-11 h-11 rounded-xl bg-slate-900/85 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/90 active:scale-95 transition flex-col gap-0.5 shadow-md shadow-black/40"
       >
-        <Shield size={20} />
-        <span className="text-[7px]">SHP</span>
+        <Shield size={18} className="text-amber-400" />
+        <span className="text-[8px] font-bold text-white/70">SHP</span>
       </button>
     </div>
   );
