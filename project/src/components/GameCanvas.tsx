@@ -12,44 +12,27 @@ function hash2D(x: number, y: number) {
   return h - Math.floor(h);
 }
 
+// 🎨 SPRITE ASSETS (Yüksek Kaliteli Oyun Sprite'ları)
+const ASSETS_URLS = {
+  tree: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120"><ellipse cx="50" cy="110" rx="35" ry="10" fill="rgba(0,0,0,0.3)"/><path d="M42 70 L58 70 L55 110 L45 110 Z" fill="%233a2312"/><path d="M50 10 L85 65 L68 65 L88 85 L12 85 L32 65 L15 65 Z" fill="%231e5128"/><path d="M50 10 L85 65 L50 60 Z" fill="%232e7d32" opacity="0.5"/><path d="M50 30 L75 75 L50 70 Z" fill="%234caf50" opacity="0.4"/></svg>',
+  player: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><ellipse cx="40" cy="70" rx="22" ry="8" fill="rgba(0,0,0,0.35)"/><circle cx="40" cy="38" r="22" fill="%231b4332"/><path d="M18 38 Q40 18 62 38 Q40 32 18 38" fill="%232d6a4f"/><circle cx="40" cy="38" r="12" fill="%23fecdd3"/><circle cx="35" cy="36" r="2.5" fill="%230f172a"/><circle cx="45" cy="36" r="2.5" fill="%230f172a"/><path d="M22 28 Q40 12 58 28 Z" fill="%23081c15"/><path d="M58 38 C68 25 68 50 58 38" stroke="%23fbbf24" stroke-width="4" fill="none"/></svg>',
+  monster: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><ellipse cx="40" cy="68" rx="20" ry="7" fill="rgba(0,0,0,0.3)"/><path d="M15 50 Q10 20 40 18 Q70 20 65 50 Q40 62 15 50 Z" fill="%23dc2626"/><circle cx="30" cy="36" r="5" fill="%23fef08a"/><circle cx="50" cy="36" r="5" fill="%23fef08a"/><circle cx="31" cy="36" r="2" fill="%23000"/><circle cx="51" cy="36" r="2" fill="%23000"/><path d="M28 48 Q40 56 52 48" stroke="%237f1d1d" stroke-width="3" fill="none"/></svg>',
+  boss: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><ellipse cx="50" cy="88" rx="30" ry="10" fill="rgba(0,0,0,0.4)"/><path d="M15 65 Q8 20 50 15 Q92 20 85 65 Q50 82 15 65 Z" fill="%237c3aed"/><path d="M30 18 L40 2 L50 12 L60 2 L70 18 Z" fill="%23fbbf24"/><circle cx="36" cy="42" r="7" fill="%23ef4444"/><circle cx="64" cy="42" r="7" fill="%23ef4444"/><circle cx="37" cy="42" r="3" fill="%23000"/><circle cx="65" cy="42" r="3" fill="%23000"/></svg>',
+};
+
 interface Tree {
   x: number;
   y: number;
   r: number;
-  type: number;
 }
 
 interface GroundDetail {
   x: number;
   y: number;
-  type: 'grass' | 'flower' | 'pebble' | 'mushroom';
+  type: 'grass' | 'flower' | 'pebble';
   color: string;
   size: number;
 }
-
-interface Particle {
-  x: number;
-  y: number;
-  speedX: number;
-  speedY: number;
-  size: number;
-  alpha: number;
-}
-
-// 🎨 Varsayılan Görsel Kaynakları (Gelişmiş SVG Sprite Data URL'leri)
-const DEFAULT_SPRITES = {
-  // Avcı (Okçu / Hunter)
-  player: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M12 50 C20 30 44 30 52 50 C40 58 24 58 12 50 Z" fill="%2315803d"/><circle cx="32" cy="24" r="14" fill="%23fed7aa"/><path d="M18 20 C22 10 42 10 46 20 C42 14 22 14 18 20 Z" fill="%2314532d"/><circle cx="27" cy="22" r="2.5" fill="%231e293b"/><circle cx="37" cy="22" r="2.5" fill="%231e293b"/><path d="M28 32 Q32 36 36 32" stroke="%23b45309" stroke-width="2" fill="none"/></svg>',
-  
-  // Normal Canavar (Goblin / Slime)
-  monster: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="36" r="22" fill="%23ef4444"/><ellipse cx="22" cy="30" rx="4" ry="6" fill="%23fef08a"/><ellipse cx="42" cy="30" rx="4" ry="6" fill="%23fef08a"/><circle cx="22" cy="30" r="2" fill="%23000"/><circle cx="42" cy="30" r="2" fill="%23000"/><path d="M20 44 Q32 52 44 44" stroke="%237f1d1d" stroke-width="3" fill="none"/></svg>',
-  
-  // Boss Canavar
-  boss: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M16 16 L24 26 L32 12 L40 26 L48 16 L44 32 L20 32 Z" fill="%23fbbf24"/><circle cx="32" cy="38" r="20" fill="%23881337"/><circle cx="24" cy="34" r="4" fill="%23fef08a"/><circle cx="40" cy="34" r="4" fill="%23fef08a"/><path d="M22 46 Q32 54 42 46" stroke="%234c0519" stroke-width="3" fill="none"/></svg>',
-  
-  // Ağaç
-  tree: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80"><rect x="28" y="50" width="8" height="26" fill="%23422c1d"/><circle cx="32" cy="36" r="26" fill="%2314532d"/><circle cx="26" cy="30" r="20" fill="%2315803d"/><circle cx="38" cy="24" r="14" fill="%2322c55e"/></svg>',
-};
 
 export function GameCanvas({ snap, quality }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -59,14 +42,13 @@ export function GameCanvas({ snap, quality }: Props) {
   qualityRef.current = quality;
   snapRef.current = snap;
 
-  // Image Asset Cache
   const imagesRef = useRef<Record<string, HTMLImageElement>>({});
 
   useEffect(() => {
-    // 🖼️ Görselleri Ön Yükleme (Preload)
-    Object.entries(DEFAULT_SPRITES).forEach(([key, src]) => {
+    // Assets Preloader
+    Object.entries(ASSETS_URLS).forEach(([key, url]) => {
       const img = new Image();
-      img.src = src;
+      img.src = url;
       imagesRef.current[key] = img;
     });
 
@@ -88,65 +70,30 @@ export function GameCanvas({ snap, quality }: Props) {
 
     let trees: Tree[] = [];
     let groundDetails: GroundDetail[] = [];
-    let particles: Particle[] = [];
     let lastZone = -1;
 
     function genDecor(zoneId: number) {
       trees = [];
       groundDetails = [];
-      particles = [];
-
       const zone = ZONES[zoneId] || ZONES[0];
 
-      // Ağaçlar
-      for (let i = 0; i < 85; i++) {
+      for (let i = 0; i < 70; i++) {
         trees.push({
           x: Math.random() * WORLD_W * TILE,
           y: Math.random() * WORLD_H * TILE,
-          r: 28 + Math.random() * 16,
-          type: Math.floor(Math.random() * 3),
+          r: 32 + Math.random() * 18,
         });
       }
 
-      // Zemin Detayları
-      const flowerColors = ['#f472b6', '#fbbf24', '#a78bfa', '#38bdf8', '#f87171'];
-      for (let i = 0; i < 350; i++) {
-        const randType = Math.random();
-        let type: GroundDetail['type'] = 'grass';
-        let color = '#4ade80';
-
-        if (randType < 0.5) {
-          type = 'grass';
-          color = shade(zone.grassColor, 1.2 + Math.random() * 0.3);
-        } else if (randType < 0.75) {
-          type = 'flower';
-          color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
-        } else if (randType < 0.9) {
-          type = 'pebble';
-          color = '#64748b';
-        } else {
-          type = 'mushroom';
-          color = '#ef4444';
-        }
-
+      const flowerColors = ['#f472b6', '#fbbf24', '#a78bfa', '#38bdf8'];
+      for (let i = 0; i < 300; i++) {
+        const rand = Math.random();
         groundDetails.push({
           x: Math.random() * WORLD_W * TILE,
           y: Math.random() * WORLD_H * TILE,
-          type,
-          color,
-          size: 2 + Math.random() * 4,
-        });
-      }
-
-      // Parçacıklar
-      for (let i = 0; i < 40; i++) {
-        particles.push({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          speedX: (Math.random() - 0.5) * 0.4,
-          speedY: -0.2 - Math.random() * 0.3,
-          size: 1.5 + Math.random() * 2.5,
-          alpha: 0.3 + Math.random() * 0.5,
+          type: rand < 0.6 ? 'grass' : rand < 0.85 ? 'flower' : 'pebble',
+          color: rand < 0.6 ? shade(zone.grassColor, 1.25) : flowerColors[Math.floor(Math.random() * flowerColors.length)],
+          size: 2 + Math.random() * 3,
         });
       }
     }
@@ -169,40 +116,24 @@ export function GameCanvas({ snap, quality }: Props) {
       const camX = px - w / 2;
       const camY = py - h / 2;
       const high = qualityRef.current === 'high';
-      const time = Date.now();
+      const images = imagesRef.current;
 
-      // 1. Zemin
+      // 1. Organic Base Ground
       ctx.fillStyle = zone.grassColor;
       ctx.fillRect(0, 0, w, h);
 
-      // Zemin Işık Desenleri
-      for (let i = 0; i < 12; i++) {
-        const patchX = ((i * 320 + 100) % (WORLD_W * TILE)) - camX;
-        const patchY = ((i * 280 + 150) % (WORLD_H * TILE)) - camY;
-        if (patchX > -250 && patchX < w + 250 && patchY > -250 && patchY < h + 250) {
-          const grad = ctx.createRadialGradient(patchX, patchY, 20, patchX, patchY, 180);
-          grad.addColorStop(0, shade(zone.grassColor, 1.12));
-          grad.addColorStop(1, 'transparent');
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(patchX, patchY, 180, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      // 2. Taş Patika Yol
+      // 2. Stone Path
       ctx.strokeStyle = zone.pathColor;
-      ctx.lineWidth = 50;
+      ctx.lineWidth = 48;
       ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.globalAlpha = 0.5;
+      ctx.globalAlpha = 0.45;
       ctx.beginPath();
       ctx.moveTo(0 - camX, 0 - camY);
       ctx.lineTo(WORLD_W * TILE - camX, WORLD_H * TILE - camY);
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // 3. Zemin Çiçek / Çim / Çakıl Detayları
+      // 3. Ground Details
       for (const d of groundDetails) {
         const sx = d.x - camX;
         const sy = d.y - camY;
@@ -210,7 +141,7 @@ export function GameCanvas({ snap, quality }: Props) {
 
         if (d.type === 'grass') {
           ctx.strokeStyle = d.color;
-          ctx.lineWidth = 1.8;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(sx, sy);
           ctx.lineTo(sx - 2, sy - d.size * 2);
@@ -220,177 +151,89 @@ export function GameCanvas({ snap, quality }: Props) {
         } else if (d.type === 'flower') {
           ctx.fillStyle = d.color;
           ctx.beginPath();
-          ctx.arc(sx, sy, d.size * 0.8, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (d.type === 'pebble') {
-          ctx.fillStyle = d.color;
-          ctx.beginPath();
-          ctx.ellipse(sx, sy, d.size, d.size * 0.6, 0, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (d.type === 'mushroom') {
-          ctx.fillStyle = d.color;
-          ctx.beginPath();
-          ctx.arc(sx, sy - 2, d.size, Math.PI, 0);
+          ctx.arc(sx, sy, d.size, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      // 4. Bölge Kilit Pedleri
-      for (const z of ZONES) {
-        if (s.unlockedZones.includes(z.id)) continue;
-        const sx = z.unlockX - camX;
-        const sy = z.unlockY - camY;
-        if (sx < -90 || sx > w + 90 || sy < -90 || sy > h + 90) continue;
-
-        ctx.fillStyle = 'rgba(255, 190, 40, 0.2)';
-        ctx.beginPath();
-        ctx.arc(sx, sy, 52, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#ffcc44';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([7, 7]);
-        ctx.beginPath();
-        ctx.arc(sx, sy, 52, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = '#ffcc44';
-        ctx.font = 'bold 20px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🔒', sx, sy + 4);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.fillText(`${z.unlockCost} G`, sx, sy + 24);
-      }
-
-      // 5. Cevherler (Gems)
+      // 4. Gem Pickups
       for (const g of s.gems) {
         const sx = g.x - camX;
         const sy = g.y - camY;
         if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) continue;
-
-        const pulse = 0.65 + 0.35 * Math.sin(time / 180 + g.x);
-        ctx.fillStyle = `rgba(91, 240, 122, ${pulse * 0.45})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 12, 0, Math.PI * 2);
-        ctx.fill();
-
         ctx.fillStyle = '#5bf07a';
-        ctx.font = 'bold 12px sans-serif';
+        ctx.font = 'bold 13px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('◆', sx, sy + 4);
       }
 
-      // 6. Ağaçlar (Sprite Render)
-      const treeImg = imagesRef.current.tree;
+      // 5. Sprite Trees (Görsel Ağaçlar)
+      const treeImg = images['tree'];
       for (const t of trees) {
         const sx = t.x - camX;
         const sy = t.y - camY;
         if (sx < -100 || sx > w + 100 || sy < -100 || sy > h + 100) continue;
 
-        // Ağaç Gölgesi
-        ctx.fillStyle = 'rgba(2, 18, 8, 0.45)';
-        ctx.beginPath();
-        ctx.ellipse(sx, sy + t.r * 0.6, t.r * 0.9, t.r * 0.35, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Ağaç Sprite Çizimi
         if (treeImg && treeImg.complete) {
           const size = t.r * 2.4;
-          ctx.drawImage(treeImg, sx - size / 2, sy - size * 0.85, size, size * 1.25);
+          ctx.drawImage(treeImg, sx - size / 2, sy - size / 1.2, size, size * 1.2);
         }
       }
 
-      // 7. Canavarlar (Sprite Render)
-      const monsterImg = imagesRef.current.monster;
-      const bossImg = imagesRef.current.boss;
-
+      // 6. Sprite Monsters (Görsel Düşmanlar)
+      const monsterImg = images['monster'];
+      const bossImg = images['boss'];
       for (const m of s.monsters) {
         const sx = m.x - camX;
         const sy = m.y - camY;
         if (sx < -70 || sx > w + 70 || sy < -70 || sy > h + 70) continue;
+
         const r = m.def.radius;
+        const currentImg = m.def.isBoss ? bossImg : monsterImg;
 
-        // Gölge
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-        ctx.beginPath();
-        ctx.ellipse(sx, sy + r * 0.8, r * 1.0, r * 0.35, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        const img = m.def.isBoss ? bossImg : monsterImg;
-        if (img && img.complete) {
-          const size = r * 2.4;
-          ctx.drawImage(img, sx - size / 2, sy - size / 2, size, size);
+        if (currentImg && currentImg.complete) {
+          const size = r * 2.6;
+          ctx.drawImage(currentImg, sx - size / 2, sy - size / 2, size, size);
         }
 
         // HP Bar
         if (m.hp < m.maxHp) {
           const bw = r * 2.2;
-          const bh = 5;
           ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-          ctx.fillRect(sx - bw / 2, sy - r - 12, bw, bh);
+          ctx.fillRect(sx - bw / 2, sy - r - 12, bw, 5);
           ctx.fillStyle = '#ef4444';
-          ctx.fillRect(sx - bw / 2, sy - r - 12, bw * (m.hp / m.maxHp), bh);
-        }
-
-        if (m.def.isBoss) {
-          ctx.fillStyle = '#fbbf24';
-          ctx.font = 'bold 11px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(m.def.name, sx, sy - r - 16);
+          ctx.fillRect(sx - bw / 2, sy - r - 12, bw * (m.hp / m.maxHp), 5);
         }
       }
 
-      // 8. Oyuncu / Avcı (Sprite Render & Bakış Aönü Dönüşü)
+      // 7. Sprite Player (Görsel Avcı)
       {
         const sx = px - camX;
         const sy = py - camY;
-        const playerImg = imagesRef.current.player;
+        const playerImg = images['player'];
 
-        // Oyuncu Gölgesi
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
-        ctx.beginPath();
-        ctx.ellipse(sx, sy + 15, 16, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Oyuncu Sprite Çizimi ve Yön Döndürme
         if (playerImg && playerImg.complete) {
+          const size = 52;
           ctx.save();
           ctx.translate(sx, sy);
-          // Yöne göre karakteri hafif döndür/yönlendir
           ctx.rotate(s.player.dir + Math.PI / 2);
-          const pSize = 42;
-          ctx.drawImage(playerImg, -pSize / 2, -pSize / 2, pSize, pSize);
+          ctx.drawImage(playerImg, -size / 2, -size / 2, size, size);
           ctx.restore();
         }
 
-        // Saldırı Yayı Efekti
-        if (s.player.attackAnim > 0) {
-          const dir = s.player.dir;
-          ctx.strokeStyle = 'rgba(254, 240, 138, 0.9)';
-          ctx.lineWidth = 3.5;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 30, dir - 0.6, dir + 0.6);
-          ctx.stroke();
-        }
-
-        // Oyuncu HP Bar
+        // Player HP Bar
         const bw = 42;
-        const bh = 5;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(sx - bw / 2, sy - 28, bw, bh);
+        ctx.fillRect(sx - bw / 2, sy - 32, bw, 5);
         const hpPct = s.player.hp / s.player.maxHp;
-        ctx.fillStyle = hpPct > 0.5 ? '#4ade80' : hpPct > 0.25 ? '#fbbf24' : '#ef4444';
-        ctx.fillRect(sx - bw / 2, sy - 28, bw * Math.max(0, hpPct), bh);
+        ctx.fillStyle = hpPct > 0.5 ? '#4ade80' : '#ef4444';
+        ctx.fillRect(sx - bw / 2, sy - 32, bw * Math.max(0, hpPct), 5);
       }
 
-      // 9. Yüzen Hasar Yazıları
+      // 8. Damage Floating Text
       for (const f of s.floats) {
         const sx = f.x - camX;
         const sy = f.y - camY;
-        const alpha = Math.min(1, f.ttl / 500);
-        ctx.globalAlpha = alpha;
         ctx.fillStyle = f.color;
         ctx.font = 'bold 13px sans-serif';
         ctx.textAlign = 'center';
@@ -398,36 +241,19 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.lineWidth = 3;
         ctx.strokeText(f.text, sx, sy);
         ctx.fillText(f.text, sx, sy);
-        ctx.globalAlpha = 1;
       }
 
-      // 10. Havada Süzülen Sihirli Polenler
+      // 9. Forest Vignette Overlay
       if (high) {
-        ctx.fillStyle = '#fef08a';
-        for (const p of particles) {
-          p.x += p.speedX;
-          p.y += p.speedY;
-          if (p.y < 0) p.y = h;
-          if (p.x < 0) p.x = w;
-          if (p.x > w) p.x = 0;
-
-          ctx.globalAlpha = p.alpha * (0.6 + 0.4 * Math.sin(time / 300 + p.x));
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
+        const vignette = ctx.createRadialGradient(
+          w / 2, h / 2, Math.max(w, h) * 0.35,
+          w / 2, h / 2, Math.max(w, h) * 0.8
+        );
+        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vignette.addColorStop(1, 'rgba(2, 18, 8, 0.5)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, w, h);
       }
-
-      // 11. Orman Vinyet Efekti
-      const vignette = ctx.createRadialGradient(
-        w / 2, h / 2, Math.max(w, h) * 0.3,
-        w / 2, h / 2, Math.max(w, h) * 0.75
-      );
-      vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vignette.addColorStop(1, 'rgba(2, 18, 8, 0.55)');
-      ctx.fillStyle = vignette;
-      ctx.fillRect(0, 0, w, h);
 
       rafRef.current = requestAnimationFrame(render);
     }
