@@ -36,6 +36,21 @@ interface Particle {
   alpha: number;
 }
 
+// 🎨 Varsayılan Görsel Kaynakları (Gelişmiş SVG Sprite Data URL'leri)
+const DEFAULT_SPRITES = {
+  // Avcı (Okçu / Hunter)
+  player: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M12 50 C20 30 44 30 52 50 C40 58 24 58 12 50 Z" fill="%2315803d"/><circle cx="32" cy="24" r="14" fill="%23fed7aa"/><path d="M18 20 C22 10 42 10 46 20 C42 14 22 14 18 20 Z" fill="%2314532d"/><circle cx="27" cy="22" r="2.5" fill="%231e293b"/><circle cx="37" cy="22" r="2.5" fill="%231e293b"/><path d="M28 32 Q32 36 36 32" stroke="%23b45309" stroke-width="2" fill="none"/></svg>',
+  
+  // Normal Canavar (Goblin / Slime)
+  monster: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="36" r="22" fill="%23ef4444"/><ellipse cx="22" cy="30" rx="4" ry="6" fill="%23fef08a"/><ellipse cx="42" cy="30" rx="4" ry="6" fill="%23fef08a"/><circle cx="22" cy="30" r="2" fill="%23000"/><circle cx="42" cy="30" r="2" fill="%23000"/><path d="M20 44 Q32 52 44 44" stroke="%237f1d1d" stroke-width="3" fill="none"/></svg>',
+  
+  // Boss Canavar
+  boss: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M16 16 L24 26 L32 12 L40 26 L48 16 L44 32 L20 32 Z" fill="%23fbbf24"/><circle cx="32" cy="38" r="20" fill="%23881337"/><circle cx="24" cy="34" r="4" fill="%23fef08a"/><circle cx="40" cy="34" r="4" fill="%23fef08a"/><path d="M22 46 Q32 54 42 46" stroke="%234c0519" stroke-width="3" fill="none"/></svg>',
+  
+  // Ağaç
+  tree: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80"><rect x="28" y="50" width="8" height="26" fill="%23422c1d"/><circle cx="32" cy="36" r="26" fill="%2314532d"/><circle cx="26" cy="30" r="20" fill="%2315803d"/><circle cx="38" cy="24" r="14" fill="%2322c55e"/></svg>',
+};
+
 export function GameCanvas({ snap, quality }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const snapRef = useRef<EngineSnapshot | null>(null);
@@ -44,7 +59,17 @@ export function GameCanvas({ snap, quality }: Props) {
   qualityRef.current = quality;
   snapRef.current = snap;
 
+  // Image Asset Cache
+  const imagesRef = useRef<Record<string, HTMLImageElement>>({});
+
   useEffect(() => {
+    // 🖼️ Görselleri Ön Yükleme (Preload)
+    Object.entries(DEFAULT_SPRITES).forEach(([key, src]) => {
+      const img = new Image();
+      img.src = src;
+      imagesRef.current[key] = img;
+    });
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
@@ -73,17 +98,17 @@ export function GameCanvas({ snap, quality }: Props) {
 
       const zone = ZONES[zoneId] || ZONES[0];
 
-      // 1. Generate Trees
+      // Ağaçlar
       for (let i = 0; i < 85; i++) {
         trees.push({
           x: Math.random() * WORLD_W * TILE,
           y: Math.random() * WORLD_H * TILE,
-          r: 26 + Math.random() * 16,
+          r: 28 + Math.random() * 16,
           type: Math.floor(Math.random() * 3),
         });
       }
 
-      // 2. Generate Ground Decor (Flowers, Mushrooms, Pebbles, Grass clumps)
+      // Zemin Detayları
       const flowerColors = ['#f472b6', '#fbbf24', '#a78bfa', '#38bdf8', '#f87171'];
       for (let i = 0; i < 350; i++) {
         const randType = Math.random();
@@ -113,7 +138,7 @@ export function GameCanvas({ snap, quality }: Props) {
         });
       }
 
-      // 3. Floating spores/fireflies
+      // Parçacıklar
       for (let i = 0; i < 40; i++) {
         particles.push({
           x: Math.random() * w,
@@ -146,11 +171,11 @@ export function GameCanvas({ snap, quality }: Props) {
       const high = qualityRef.current === 'high';
       const time = Date.now();
 
-      // 1. Organic Base Fill (Smooth organic grass)
+      // 1. Zemin
       ctx.fillStyle = zone.grassColor;
       ctx.fillRect(0, 0, w, h);
 
-      // Organic terrain light variation patches
+      // Zemin Işık Desenleri
       for (let i = 0; i < 12; i++) {
         const patchX = ((i * 320 + 100) % (WORLD_W * TILE)) - camX;
         const patchY = ((i * 280 + 150) % (WORLD_H * TILE)) - camY;
@@ -165,7 +190,7 @@ export function GameCanvas({ snap, quality }: Props) {
         }
       }
 
-      // 2. Stone Path
+      // 2. Taş Patika Yol
       ctx.strokeStyle = zone.pathColor;
       ctx.lineWidth = 50;
       ctx.lineCap = 'round';
@@ -177,24 +202,7 @@ export function GameCanvas({ snap, quality }: Props) {
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Cobblestone Accents
-      if (high) {
-        ctx.fillStyle = shade(zone.pathColor, 1.25);
-        ctx.globalAlpha = 0.35;
-        for (let i = 0; i < 30; i++) {
-          const pathStep = (i / 30) * WORLD_W * TILE;
-          const pxPos = pathStep - camX + (hash2D(i, 1) - 0.5) * 24;
-          const pyPos = pathStep - camY + (hash2D(i, 2) - 0.5) * 24;
-          if (pxPos > -30 && pxPos < w + 30 && pyPos > -30 && pyPos < h + 30) {
-            ctx.beginPath();
-            ctx.arc(pxPos, pyPos, 5 + hash2D(i, 3) * 7, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        ctx.globalAlpha = 1;
-      }
-
-      // 3. Organic Ground Details (Flowers, Grass Clumps, Pebbles, Mushrooms)
+      // 3. Zemin Çiçek / Çim / Çakıl Detayları
       for (const d of groundDetails) {
         const sx = d.x - camX;
         const sy = d.y - camY;
@@ -214,10 +222,6 @@ export function GameCanvas({ snap, quality }: Props) {
           ctx.beginPath();
           ctx.arc(sx, sy, d.size * 0.8, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = '#fef08a';
-          ctx.beginPath();
-          ctx.arc(sx, sy, d.size * 0.3, 0, Math.PI * 2);
-          ctx.fill();
         } else if (d.type === 'pebble') {
           ctx.fillStyle = d.color;
           ctx.beginPath();
@@ -228,12 +232,10 @@ export function GameCanvas({ snap, quality }: Props) {
           ctx.beginPath();
           ctx.arc(sx, sy - 2, d.size, Math.PI, 0);
           ctx.fill();
-          ctx.fillStyle = '#fef3c7';
-          ctx.fillRect(sx - 1, sy - 2, 2, 3);
         }
       }
 
-      // 4. Unlock Pads
+      // 4. Bölge Kilit Pedleri
       for (const z of ZONES) {
         if (s.unlockedZones.includes(z.id)) continue;
         const sx = z.unlockX - camX;
@@ -262,33 +264,7 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.fillText(`${z.unlockCost} G`, sx, sy + 24);
       }
 
-      // 5. Unlocked Portals
-      for (const z of ZONES) {
-        if (!s.unlockedZones.includes(z.id)) continue;
-        if (z.id === s.currentZone) continue;
-        const sx = z.unlockX - camX;
-        const sy = z.unlockY - camY;
-        if (sx < -90 || sx > w + 90 || sy < -90 || sy > h + 90) continue;
-
-        const pulse = 0.5 + 0.35 * Math.sin(time / 280);
-        ctx.fillStyle = `rgba(100, 210, 255, ${pulse * 0.35})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 46, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#66ccff';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 46, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.fillStyle = '#baefff';
-        ctx.font = 'bold 20px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('★', sx, sy + 6);
-      }
-
-      // 6. Gem Pickups
+      // 5. Cevherler (Gems)
       for (const g of s.gems) {
         const sx = g.x - camX;
         const sy = g.y - camY;
@@ -306,98 +282,46 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.fillText('◆', sx, sy + 4);
       }
 
-      // 7. Layered 2.5D Trees
+      // 6. Ağaçlar (Sprite Render)
+      const treeImg = imagesRef.current.tree;
       for (const t of trees) {
         const sx = t.x - camX;
         const sy = t.y - camY;
         if (sx < -100 || sx > w + 100 || sy < -100 || sy > h + 100) continue;
 
-        // Ground Shadow
+        // Ağaç Gölgesi
         ctx.fillStyle = 'rgba(2, 18, 8, 0.45)';
         ctx.beginPath();
-        ctx.ellipse(sx + 6, sy + 20, t.r * 1.25, t.r * 0.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy + t.r * 0.6, t.r * 0.9, t.r * 0.35, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Trunk
-        ctx.fillStyle = '#2b1a10';
-        ctx.fillRect(sx - 6, sy - 4, 12, 24);
-        ctx.fillStyle = '#422c1d';
-        ctx.fillRect(sx - 2, sy - 4, 5, 24);
-
-        // Canopy Layer 1 (Dark)
-        const baseColor = zone.grassColor;
-        ctx.fillStyle = shade(baseColor, 0.45);
-        ctx.beginPath();
-        ctx.arc(sx, sy - 10, t.r * 1.15, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Canopy Layer 2 (Mid)
-        ctx.fillStyle = shade(baseColor, 0.72);
-        ctx.beginPath();
-        ctx.arc(sx - 4, sy - 16, t.r * 0.9, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Canopy Layer 3 (Highlight)
-        ctx.fillStyle = shade(baseColor, 1.1);
-        ctx.beginPath();
-        ctx.arc(sx - 7, sy - 22, t.r * 0.65, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Magic Orbs on Trees
-        if (t.type === 1) {
-          const glow = 0.5 + 0.5 * Math.sin(time / 400 + t.x);
-          ctx.fillStyle = `rgba(253, 224, 71, ${glow * 0.8})`;
-          ctx.beginPath();
-          ctx.arc(sx + t.r * 0.3, sy - t.r * 0.8, 3.5, 0, Math.PI * 2);
-          ctx.arc(sx - t.r * 0.4, sy - t.r * 0.5, 2.5, 0, Math.PI * 2);
-          ctx.fill();
+        // Ağaç Sprite Çizimi
+        if (treeImg && treeImg.complete) {
+          const size = t.r * 2.4;
+          ctx.drawImage(treeImg, sx - size / 2, sy - size * 0.85, size, size * 1.25);
         }
       }
 
-      // 8. Monsters
+      // 7. Canavarlar (Sprite Render)
+      const monsterImg = imagesRef.current.monster;
+      const bossImg = imagesRef.current.boss;
+
       for (const m of s.monsters) {
         const sx = m.x - camX;
         const sy = m.y - camY;
         if (sx < -70 || sx > w + 70 || sy < -70 || sy > h + 70) continue;
         const r = m.def.radius;
 
-        // Shadow
+        // Gölge
         ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
-        ctx.ellipse(sx, sy + r * 0.85, r * 1.1, r * 0.4, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy + r * 0.8, r * 1.0, r * 0.35, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Body
-        const flash = m.hitFlash > 0;
-        ctx.fillStyle = flash ? '#ffffff' : m.def.color;
-        ctx.beginPath();
-        ctx.arc(sx, sy, r, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Eyes
-        if (!m.def.isBoss) {
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.arc(sx - r * 0.3, sy - r * 0.25, 2.8, 0, Math.PI * 2);
-          ctx.arc(sx + r * 0.3, sy - r * 0.25, 2.8, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          // Boss Crown
-          ctx.fillStyle = '#fbbf24';
-          ctx.beginPath();
-          ctx.moveTo(sx - r * 0.6, sy - r * 0.7);
-          ctx.lineTo(sx - r * 0.3, sy - r * 1.2);
-          ctx.lineTo(sx, sy - r * 0.8);
-          ctx.lineTo(sx + r * 0.3, sy - r * 1.2);
-          ctx.lineTo(sx + r * 0.6, sy - r * 0.7);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.fillStyle = '#dc2626';
-          ctx.beginPath();
-          ctx.arc(sx - r * 0.3, sy - r * 0.2, 4, 0, Math.PI * 2);
-          ctx.arc(sx + r * 0.3, sy - r * 0.2, 4, 0, Math.PI * 2);
-          ctx.fill();
+        const img = m.def.isBoss ? bossImg : monsterImg;
+        if (img && img.complete) {
+          const size = r * 2.4;
+          ctx.drawImage(img, sx - size / 2, sy - size / 2, size, size);
         }
 
         // HP Bar
@@ -418,47 +342,32 @@ export function GameCanvas({ snap, quality }: Props) {
         }
       }
 
-      // 9. Player (Avcı)
+      // 8. Oyuncu / Avcı (Sprite Render & Bakış Aönü Dönüşü)
       {
         const sx = px - camX;
         const sy = py - camY;
+        const playerImg = imagesRef.current.player;
 
-        // Player Shadow
+        // Oyuncu Gölgesi
         ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
         ctx.beginPath();
         ctx.ellipse(sx, sy + 15, 16, 7, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Player Cloak / Body
-        const flash = s.player.hitFlash > 0;
-        ctx.fillStyle = flash ? '#ff8888' : '#15803d';
-        ctx.beginPath();
-        ctx.arc(sx, sy, 15, 0, Math.PI * 2);
-        ctx.fill();
+        // Oyuncu Sprite Çizimi ve Yön Döndürme
+        if (playerImg && playerImg.complete) {
+          ctx.save();
+          ctx.translate(sx, sy);
+          // Yöne göre karakteri hafif döndür/yönlendir
+          ctx.rotate(s.player.dir + Math.PI / 2);
+          const pSize = 42;
+          ctx.drawImage(playerImg, -pSize / 2, -pSize / 2, pSize, pSize);
+          ctx.restore();
+        }
 
-        // Hood
-        ctx.fillStyle = '#14532d';
-        ctx.beginPath();
-        ctx.arc(sx, sy - 3, 11, Math.PI, 0);
-        ctx.fill();
-
-        // Face
-        ctx.fillStyle = '#fed7aa';
-        ctx.beginPath();
-        ctx.arc(sx, sy - 1, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Direction Indicator (Bow Aim)
-        const dir = s.player.dir;
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + Math.cos(dir) * 25, sy + Math.sin(dir) * 25);
-        ctx.stroke();
-
-        // Attack Swing Arc
+        // Saldırı Yayı Efekti
         if (s.player.attackAnim > 0) {
+          const dir = s.player.dir;
           ctx.strokeStyle = 'rgba(254, 240, 138, 0.9)';
           ctx.lineWidth = 3.5;
           ctx.beginPath();
@@ -466,7 +375,7 @@ export function GameCanvas({ snap, quality }: Props) {
           ctx.stroke();
         }
 
-        // Player HP Bar
+        // Oyuncu HP Bar
         const bw = 42;
         const bh = 5;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -474,12 +383,9 @@ export function GameCanvas({ snap, quality }: Props) {
         const hpPct = s.player.hp / s.player.maxHp;
         ctx.fillStyle = hpPct > 0.5 ? '#4ade80' : hpPct > 0.25 ? '#fbbf24' : '#ef4444';
         ctx.fillRect(sx - bw / 2, sy - 28, bw * Math.max(0, hpPct), bh);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(sx - bw / 2, sy - 28, bw, bh);
       }
 
-      // 10. Floating Damage Texts
+      // 9. Yüzen Hasar Yazıları
       for (const f of s.floats) {
         const sx = f.x - camX;
         const sy = f.y - camY;
@@ -495,21 +401,7 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.globalAlpha = 1;
       }
 
-      // 11. Unlock Ring Progress
-      if (s.unlockProgress !== null) {
-        const z = ZONES.find(z2 => !s.unlockedZones.includes(z2.id));
-        if (z) {
-          const sx = z.unlockX - camX;
-          const sy = z.unlockY - camY;
-          ctx.strokeStyle = '#fbbf24';
-          ctx.lineWidth = 6;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 58, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * s.unlockProgress);
-          ctx.stroke();
-        }
-      }
-
-      // 12. Floating Spores / Fireflies
+      // 10. Havada Süzülen Sihirli Polenler
       if (high) {
         ctx.fillStyle = '#fef08a';
         for (const p of particles) {
@@ -527,7 +419,7 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.globalAlpha = 1;
       }
 
-      // 13. Deep Forest Vignette Overlay
+      // 11. Orman Vinyet Efekti
       const vignette = ctx.createRadialGradient(
         w / 2, h / 2, Math.max(w, h) * 0.3,
         w / 2, h / 2, Math.max(w, h) * 0.75
