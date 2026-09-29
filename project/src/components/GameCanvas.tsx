@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { EngineSnapshot } from '@/game/engine';
-import { ZONES, TILE, WORLD_W, WORLD_H, RARITY_COLORS } from '@/game/data';
+import { ZONES, TILE, WORLD_W, WORLD_H } from '@/game/data';
 
 interface Props {
   snap: EngineSnapshot | null;
@@ -10,6 +10,30 @@ interface Props {
 function hash2D(x: number, y: number) {
   const h = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453123;
   return h - Math.floor(h);
+}
+
+interface Tree {
+  x: number;
+  y: number;
+  r: number;
+  type: number;
+}
+
+interface GroundDetail {
+  x: number;
+  y: number;
+  type: 'grass' | 'flower' | 'pebble' | 'mushroom';
+  color: string;
+  size: number;
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  speedX: number;
+  speedY: number;
+  size: number;
+  alpha: number;
 }
 
 export function GameCanvas({ snap, quality }: Props) {
@@ -37,17 +61,67 @@ export function GameCanvas({ snap, quality }: Props) {
     resize();
     window.addEventListener('resize', resize);
 
-    let trees: { x: number; y: number; r: number; type: number }[] = [];
+    let trees: Tree[] = [];
+    let groundDetails: GroundDetail[] = [];
+    let particles: Particle[] = [];
     let lastZone = -1;
 
     function genDecor(zoneId: number) {
       trees = [];
-      for (let i = 0; i < 75; i++) {
+      groundDetails = [];
+      particles = [];
+
+      const zone = ZONES[zoneId] || ZONES[0];
+
+      // 1. Generate Trees
+      for (let i = 0; i < 85; i++) {
         trees.push({
           x: Math.random() * WORLD_W * TILE,
           y: Math.random() * WORLD_H * TILE,
-          r: 22 + Math.random() * 14,
+          r: 26 + Math.random() * 16,
           type: Math.floor(Math.random() * 3),
+        });
+      }
+
+      // 2. Generate Ground Decor (Flowers, Mushrooms, Pebbles, Grass clumps)
+      const flowerColors = ['#f472b6', '#fbbf24', '#a78bfa', '#38bdf8', '#f87171'];
+      for (let i = 0; i < 350; i++) {
+        const randType = Math.random();
+        let type: GroundDetail['type'] = 'grass';
+        let color = '#4ade80';
+
+        if (randType < 0.5) {
+          type = 'grass';
+          color = shade(zone.grassColor, 1.2 + Math.random() * 0.3);
+        } else if (randType < 0.75) {
+          type = 'flower';
+          color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+        } else if (randType < 0.9) {
+          type = 'pebble';
+          color = '#64748b';
+        } else {
+          type = 'mushroom';
+          color = '#ef4444';
+        }
+
+        groundDetails.push({
+          x: Math.random() * WORLD_W * TILE,
+          y: Math.random() * WORLD_H * TILE,
+          type,
+          color,
+          size: 2 + Math.random() * 4,
+        });
+      }
+
+      // 3. Floating spores/fireflies
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          speedX: (Math.random() - 0.5) * 0.4,
+          speedY: -0.2 - Math.random() * 0.3,
+          size: 1.5 + Math.random() * 2.5,
+          alpha: 0.3 + Math.random() * 0.5,
         });
       }
     }
@@ -64,130 +138,109 @@ export function GameCanvas({ snap, quality }: Props) {
         genDecor(s.currentZone);
       }
 
-      const zone = ZONES[s.currentZone];
+      const zone = ZONES[s.currentZone] || ZONES[0];
       const px = s.player.x;
       const py = s.player.y;
       const camX = px - w / 2;
       const camY = py - h / 2;
+      const high = qualityRef.current === 'high';
+      const time = Date.now();
 
-      // 1. Background Fill
-      ctx.fillStyle = zone.bgColor;
+      // 1. Organic Base Fill (Smooth organic grass)
+      ctx.fillStyle = zone.grassColor;
       ctx.fillRect(0, 0, w, h);
 
-      // 2. Organic Grass Ground Tiles
-      const startTx = Math.max(0, Math.floor(camX / TILE));
-      const endTx = Math.min(WORLD_W, Math.ceil((camX + w) / TILE));
-      const startTy = Math.max(0, Math.floor(camY / TILE));
-      const endTy = Math.min(WORLD_H, Math.ceil((camY + h) / TILE));
-
-      const high = qualityRef.current === 'high';
-
-      for (let ty = startTy; ty < endTy; ty++) {
-        for (let tx = startTx; tx < endTx; tx++) {
-          const sx = tx * TILE - camX;
-          const sy = ty * TILE - camY;
-
-          // Organic shade variation using 2D pseudo-hash
-          const rand = hash2D(tx, ty);
-          const shadeFactor = 0.92 + rand * 0.16;
-          ctx.fillStyle = shade(zone.grassColor, shadeFactor);
-          ctx.fillRect(sx, sy, TILE, TILE);
-
-          // Grass blade details
-          if (high && rand > 0.6) {
-            ctx.fillStyle = shade(zone.grassColor, 1.25);
-            ctx.beginPath();
-            ctx.fillRect(sx + 10, sy + 14, 2, 5);
-            ctx.fillRect(sx + 13, sy + 11, 2, 8);
-            ctx.fillRect(sx + 32, sy + 24, 2, 6);
-            ctx.fill();
-          }
+      // Organic terrain light variation patches
+      for (let i = 0; i < 12; i++) {
+        const patchX = ((i * 320 + 100) % (WORLD_W * TILE)) - camX;
+        const patchY = ((i * 280 + 150) % (WORLD_H * TILE)) - camY;
+        if (patchX > -250 && patchX < w + 250 && patchY > -250 && patchY < h + 250) {
+          const grad = ctx.createRadialGradient(patchX, patchY, 20, patchX, patchY, 180);
+          grad.addColorStop(0, shade(zone.grassColor, 1.12));
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(patchX, patchY, 180, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
-      // 3. Stone Path
+      // 2. Stone Path
       ctx.strokeStyle = zone.pathColor;
-      ctx.lineWidth = 54;
+      ctx.lineWidth = 50;
       ctx.lineCap = 'round';
-      ctx.globalAlpha = 0.45;
+      ctx.lineJoin = 'round';
+      ctx.globalAlpha = 0.5;
       ctx.beginPath();
       ctx.moveTo(0 - camX, 0 - camY);
       ctx.lineTo(WORLD_W * TILE - camX, WORLD_H * TILE - camY);
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Path Cobblestone Highlights
+      // Cobblestone Accents
       if (high) {
-        ctx.fillStyle = shade(zone.pathColor, 1.2);
-        ctx.globalAlpha = 0.25;
-        for (let i = 0; i < 25; i++) {
-          const pathStep = (i / 25) * WORLD_W * TILE;
-          const pxPos = pathStep - camX + (hash2D(i, 1) - 0.5) * 20;
-          const pyPos = pathStep - camY + (hash2D(i, 2) - 0.5) * 20;
+        ctx.fillStyle = shade(zone.pathColor, 1.25);
+        ctx.globalAlpha = 0.35;
+        for (let i = 0; i < 30; i++) {
+          const pathStep = (i / 30) * WORLD_W * TILE;
+          const pxPos = pathStep - camX + (hash2D(i, 1) - 0.5) * 24;
+          const pyPos = pathStep - camY + (hash2D(i, 2) - 0.5) * 24;
           if (pxPos > -30 && pxPos < w + 30 && pyPos > -30 && pyPos < h + 30) {
             ctx.beginPath();
-            ctx.arc(pxPos, pyPos, 6 + hash2D(i, 3) * 6, 0, Math.PI * 2);
+            ctx.arc(pxPos, pyPos, 5 + hash2D(i, 3) * 7, 0, Math.PI * 2);
             ctx.fill();
           }
         }
         ctx.globalAlpha = 1;
       }
 
-      // 4. Layered 2.5D Trees & Foliage
-      for (const t of trees) {
-        const sx = t.x - camX;
-        const sy = t.y - camY;
-        if (sx < -80 || sx > w + 80 || sy < -80 || sy > h + 80) continue;
+      // 3. Organic Ground Details (Flowers, Grass Clumps, Pebbles, Mushrooms)
+      for (const d of groundDetails) {
+        const sx = d.x - camX;
+        const sy = d.y - camY;
+        if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) continue;
 
-        // Ground Shadow
-        ctx.fillStyle = 'rgba(5, 15, 8, 0.35)';
-        ctx.beginPath();
-        ctx.ellipse(sx + 4, sy + 16, t.r * 1.1, t.r * 0.45, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Wooden Trunk
-        ctx.fillStyle = '#3a271d';
-        ctx.fillRect(sx - 5, sy - 2, 10, 20);
-        ctx.fillStyle = '#543b2c';
-        ctx.fillRect(sx - 2, sy - 2, 4, 20);
-
-        // Canopy Base Layer (Dark)
-        const baseColor = zone.grassColor;
-        ctx.fillStyle = shade(baseColor, 0.55);
-        ctx.beginPath();
-        ctx.arc(sx, sy - 8, t.r * 1.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Canopy Middle Layer
-        ctx.fillStyle = shade(baseColor, 0.78);
-        ctx.beginPath();
-        ctx.arc(sx - 3, sy - 14, t.r * 0.85, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Canopy Top Highlight Layer
-        ctx.fillStyle = shade(baseColor, 1.05);
-        ctx.beginPath();
-        ctx.arc(sx - 5, sy - 20, t.r * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Magic Ambient Glow on certain trees
-        if (t.type === 1) {
-          ctx.fillStyle = 'rgba(255, 230, 150, 0.6)';
+        if (d.type === 'grass') {
+          ctx.strokeStyle = d.color;
+          ctx.lineWidth = 1.8;
           ctx.beginPath();
-          ctx.arc(sx + t.r * 0.2, sy - t.r * 0.7, 2.5, 0, Math.PI * 2);
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx - 2, sy - d.size * 2);
+          ctx.moveTo(sx + 2, sy);
+          ctx.lineTo(sx + 3, sy - d.size * 2.2);
+          ctx.stroke();
+        } else if (d.type === 'flower') {
+          ctx.fillStyle = d.color;
+          ctx.beginPath();
+          ctx.arc(sx, sy, d.size * 0.8, 0, Math.PI * 2);
           ctx.fill();
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(sx, sy, d.size * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (d.type === 'pebble') {
+          ctx.fillStyle = d.color;
+          ctx.beginPath();
+          ctx.ellipse(sx, sy, d.size, d.size * 0.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (d.type === 'mushroom') {
+          ctx.fillStyle = d.color;
+          ctx.beginPath();
+          ctx.arc(sx, sy - 2, d.size, Math.PI, 0);
+          ctx.fill();
+          ctx.fillStyle = '#fef3c7';
+          ctx.fillRect(sx - 1, sy - 2, 2, 3);
         }
       }
 
-      // 5. Unlock Pads
+      // 4. Unlock Pads
       for (const z of ZONES) {
         if (s.unlockedZones.includes(z.id)) continue;
         const sx = z.unlockX - camX;
         const sy = z.unlockY - camY;
         if (sx < -90 || sx > w + 90 || sy < -90 || sy > h + 90) continue;
 
-        // Pad aura
-        ctx.fillStyle = 'rgba(255, 190, 40, 0.18)';
+        ctx.fillStyle = 'rgba(255, 190, 40, 0.2)';
         ctx.beginPath();
         ctx.arc(sx, sy, 52, 0, Math.PI * 2);
         ctx.fill();
@@ -200,7 +253,6 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Lock label
         ctx.fillStyle = '#ffcc44';
         ctx.font = 'bold 20px sans-serif';
         ctx.textAlign = 'center';
@@ -210,7 +262,7 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.fillText(`${z.unlockCost} G`, sx, sy + 24);
       }
 
-      // 6. Unlocked Portals
+      // 5. Unlocked Portals
       for (const z of ZONES) {
         if (!s.unlockedZones.includes(z.id)) continue;
         if (z.id === s.currentZone) continue;
@@ -218,7 +270,7 @@ export function GameCanvas({ snap, quality }: Props) {
         const sy = z.unlockY - camY;
         if (sx < -90 || sx > w + 90 || sy < -90 || sy > h + 90) continue;
 
-        const pulse = 0.5 + 0.35 * Math.sin(Date.now() / 280);
+        const pulse = 0.5 + 0.35 * Math.sin(time / 280);
         ctx.fillStyle = `rgba(100, 210, 255, ${pulse * 0.35})`;
         ctx.beginPath();
         ctx.arc(sx, sy, 46, 0, Math.PI * 2);
@@ -236,23 +288,70 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.fillText('★', sx, sy + 6);
       }
 
-      // 7. Gem Pickups
+      // 6. Gem Pickups
       for (const g of s.gems) {
         const sx = g.x - camX;
         const sy = g.y - camY;
         if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) continue;
 
-        const pulse = 0.65 + 0.35 * Math.sin(Date.now() / 180 + g.x);
-        // Gem Glow
-        ctx.fillStyle = `rgba(91, 240, 122, ${pulse * 0.4})`;
+        const pulse = 0.65 + 0.35 * Math.sin(time / 180 + g.x);
+        ctx.fillStyle = `rgba(91, 240, 122, ${pulse * 0.45})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, 11, 0, Math.PI * 2);
+        ctx.arc(sx, sy, 12, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#5bf07a';
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('◆', sx, sy + 4);
+      }
+
+      // 7. Layered 2.5D Trees
+      for (const t of trees) {
+        const sx = t.x - camX;
+        const sy = t.y - camY;
+        if (sx < -100 || sx > w + 100 || sy < -100 || sy > h + 100) continue;
+
+        // Ground Shadow
+        ctx.fillStyle = 'rgba(2, 18, 8, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(sx + 6, sy + 20, t.r * 1.25, t.r * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Trunk
+        ctx.fillStyle = '#2b1a10';
+        ctx.fillRect(sx - 6, sy - 4, 12, 24);
+        ctx.fillStyle = '#422c1d';
+        ctx.fillRect(sx - 2, sy - 4, 5, 24);
+
+        // Canopy Layer 1 (Dark)
+        const baseColor = zone.grassColor;
+        ctx.fillStyle = shade(baseColor, 0.45);
+        ctx.beginPath();
+        ctx.arc(sx, sy - 10, t.r * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Canopy Layer 2 (Mid)
+        ctx.fillStyle = shade(baseColor, 0.72);
+        ctx.beginPath();
+        ctx.arc(sx - 4, sy - 16, t.r * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Canopy Layer 3 (Highlight)
+        ctx.fillStyle = shade(baseColor, 1.1);
+        ctx.beginPath();
+        ctx.arc(sx - 7, sy - 22, t.r * 0.65, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Magic Orbs on Trees
+        if (t.type === 1) {
+          const glow = 0.5 + 0.5 * Math.sin(time / 400 + t.x);
+          ctx.fillStyle = `rgba(253, 224, 71, ${glow * 0.8})`;
+          ctx.beginPath();
+          ctx.arc(sx + t.r * 0.3, sy - t.r * 0.8, 3.5, 0, Math.PI * 2);
+          ctx.arc(sx - t.r * 0.4, sy - t.r * 0.5, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       // 8. Monsters
@@ -263,41 +362,41 @@ export function GameCanvas({ snap, quality }: Props) {
         const r = m.def.radius;
 
         // Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
-        ctx.ellipse(sx, sy + r * 0.85, r * 1.05, r * 0.35, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy + r * 0.85, r * 1.1, r * 0.4, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Monster Body
+        // Body
         const flash = m.hitFlash > 0;
         ctx.fillStyle = flash ? '#ffffff' : m.def.color;
         ctx.beginPath();
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.fill();
 
-        // Monster Features
+        // Eyes
         if (!m.def.isBoss) {
-          ctx.fillStyle = '#ff2222';
+          ctx.fillStyle = '#ef4444';
           ctx.beginPath();
-          ctx.arc(sx - r * 0.3, sy - r * 0.25, 2.5, 0, Math.PI * 2);
-          ctx.arc(sx + r * 0.3, sy - r * 0.25, 2.5, 0, Math.PI * 2);
+          ctx.arc(sx - r * 0.3, sy - r * 0.25, 2.8, 0, Math.PI * 2);
+          ctx.arc(sx + r * 0.3, sy - r * 0.25, 2.8, 0, Math.PI * 2);
           ctx.fill();
         } else {
           // Boss Crown
-          ctx.fillStyle = '#ffaa00';
+          ctx.fillStyle = '#fbbf24';
           ctx.beginPath();
           ctx.moveTo(sx - r * 0.6, sy - r * 0.7);
-          ctx.lineTo(sx - r * 0.3, sy - r * 1.15);
+          ctx.lineTo(sx - r * 0.3, sy - r * 1.2);
           ctx.lineTo(sx, sy - r * 0.8);
-          ctx.lineTo(sx + r * 0.3, sy - r * 1.15);
+          ctx.lineTo(sx + r * 0.3, sy - r * 1.2);
           ctx.lineTo(sx + r * 0.6, sy - r * 0.7);
           ctx.closePath();
           ctx.fill();
 
-          ctx.fillStyle = '#ff0000';
+          ctx.fillStyle = '#dc2626';
           ctx.beginPath();
-          ctx.arc(sx - r * 0.3, sy - r * 0.2, 3.5, 0, Math.PI * 2);
-          ctx.arc(sx + r * 0.3, sy - r * 0.2, 3.5, 0, Math.PI * 2);
+          ctx.arc(sx - r * 0.3, sy - r * 0.2, 4, 0, Math.PI * 2);
+          ctx.arc(sx + r * 0.3, sy - r * 0.2, 4, 0, Math.PI * 2);
           ctx.fill();
         }
 
@@ -305,14 +404,14 @@ export function GameCanvas({ snap, quality }: Props) {
         if (m.hp < m.maxHp) {
           const bw = r * 2.2;
           const bh = 5;
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
           ctx.fillRect(sx - bw / 2, sy - r - 12, bw, bh);
-          ctx.fillStyle = '#ff4444';
+          ctx.fillStyle = '#ef4444';
           ctx.fillRect(sx - bw / 2, sy - r - 12, bw * (m.hp / m.maxHp), bh);
         }
 
         if (m.def.isBoss) {
-          ctx.fillStyle = '#ffaa00';
+          ctx.fillStyle = '#fbbf24';
           ctx.font = 'bold 11px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(m.def.name, sx, sy - r - 16);
@@ -324,63 +423,63 @@ export function GameCanvas({ snap, quality }: Props) {
         const sx = px - camX;
         const sy = py - camY;
 
-        // Player Ground Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        // Player Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
         ctx.beginPath();
-        ctx.ellipse(sx, sy + 15, 15, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy + 15, 16, 7, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Player Cloak / Body
         const flash = s.player.hitFlash > 0;
-        ctx.fillStyle = flash ? '#ff8888' : '#2d6a4f';
+        ctx.fillStyle = flash ? '#ff8888' : '#15803d';
         ctx.beginPath();
         ctx.arc(sx, sy, 15, 0, Math.PI * 2);
         ctx.fill();
 
         // Hood
-        ctx.fillStyle = '#1b4332';
+        ctx.fillStyle = '#14532d';
         ctx.beginPath();
         ctx.arc(sx, sy - 3, 11, Math.PI, 0);
         ctx.fill();
 
         // Face
-        ctx.fillStyle = '#e0c0a0';
+        ctx.fillStyle = '#fed7aa';
         ctx.beginPath();
         ctx.arc(sx, sy - 1, 5.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Direction Indicator (Golden Bow)
+        // Direction Indicator (Bow Aim)
         const dir = s.player.dir;
-        ctx.strokeStyle = '#f4a261';
+        ctx.strokeStyle = '#f59e0b';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + Math.cos(dir) * 24, sy + Math.sin(dir) * 24);
+        ctx.lineTo(sx + Math.cos(dir) * 25, sy + Math.sin(dir) * 25);
         ctx.stroke();
 
         // Attack Swing Arc
         if (s.player.attackAnim > 0) {
-          ctx.strokeStyle = 'rgba(255, 230, 110, 0.85)';
+          ctx.strokeStyle = 'rgba(254, 240, 138, 0.9)';
           ctx.lineWidth = 3.5;
           ctx.beginPath();
-          ctx.arc(sx, sy, 28, dir - 0.55, dir + 0.55);
+          ctx.arc(sx, sy, 30, dir - 0.6, dir + 0.6);
           ctx.stroke();
         }
 
         // Player HP Bar
         const bw = 42;
         const bh = 5;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(sx - bw / 2, sy - 28, bw, bh);
         const hpPct = s.player.hp / s.player.maxHp;
-        ctx.fillStyle = hpPct > 0.5 ? '#5bf07a' : hpPct > 0.25 ? '#ffaa44' : '#ff4444';
+        ctx.fillStyle = hpPct > 0.5 ? '#4ade80' : hpPct > 0.25 ? '#fbbf24' : '#ef4444';
         ctx.fillRect(sx - bw / 2, sy - 28, bw * Math.max(0, hpPct), bh);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 1;
         ctx.strokeRect(sx - bw / 2, sy - 28, bw, bh);
       }
 
-      // 10. Floating Texts (Damage numbers & gains)
+      // 10. Floating Damage Texts
       for (const f of s.floats) {
         const sx = f.x - camX;
         const sy = f.y - camY;
@@ -389,7 +488,7 @@ export function GameCanvas({ snap, quality }: Props) {
         ctx.fillStyle = f.color;
         ctx.font = 'bold 13px sans-serif';
         ctx.textAlign = 'center';
-        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
         ctx.lineWidth = 3;
         ctx.strokeText(f.text, sx, sy);
         ctx.fillText(f.text, sx, sy);
@@ -402,7 +501,7 @@ export function GameCanvas({ snap, quality }: Props) {
         if (z) {
           const sx = z.unlockX - camX;
           const sy = z.unlockY - camY;
-          ctx.strokeStyle = '#ffcc44';
+          ctx.strokeStyle = '#fbbf24';
           ctx.lineWidth = 6;
           ctx.beginPath();
           ctx.arc(sx, sy, 58, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * s.unlockProgress);
@@ -410,13 +509,31 @@ export function GameCanvas({ snap, quality }: Props) {
         }
       }
 
-      // 12. Forest Vignette Lighting Overlay
+      // 12. Floating Spores / Fireflies
+      if (high) {
+        ctx.fillStyle = '#fef08a';
+        for (const p of particles) {
+          p.x += p.speedX;
+          p.y += p.speedY;
+          if (p.y < 0) p.y = h;
+          if (p.x < 0) p.x = w;
+          if (p.x > w) p.x = 0;
+
+          ctx.globalAlpha = p.alpha * (0.6 + 0.4 * Math.sin(time / 300 + p.x));
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // 13. Deep Forest Vignette Overlay
       const vignette = ctx.createRadialGradient(
-        w / 2, h / 2, Math.max(w, h) * 0.35,
-        w / 2, h / 2, Math.max(w, h) * 0.8
+        w / 2, h / 2, Math.max(w, h) * 0.3,
+        w / 2, h / 2, Math.max(w, h) * 0.75
       );
       vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vignette.addColorStop(1, 'rgba(4, 20, 10, 0.42)');
+      vignette.addColorStop(1, 'rgba(2, 18, 8, 0.55)');
       ctx.fillStyle = vignette;
       ctx.fillRect(0, 0, w, h);
 
